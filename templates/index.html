@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务列表</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px 5px 10px 0;
+            font-size: 1em;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .button.create {
+            background-color: #4CAF50;
+        }
+        .button.edit {
+            background-color: #2196F3;
+        }
+        .button.delete {
+            background-color: #f44336;
+        }
+        .button:hover {
+            opacity: 0.9;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background: #f9f9f9;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        li strong {
+            font-size: 1.2em;
+            color: #4CAF50;
+        }
+        li span {
+            display: block;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        li .actions {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            margin-top: 20px;
+            border-radius: 0 0 10px 10px;
+        }
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+        }
+        .modal-content input, .modal-content select {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        .modal-content .button {
+            width: 45%;
+            margin: 10px 2%;
+        }
+        .modal-content .button.cancel {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>任务列表</h1>
+    </header>
+    <div class="container">
+        <!-- 创建任务按钮 -->
+        <button class="button create" onclick="openCreateModal()">创建任务</button>
+        <ul>
+            {% for task in tasks %}
+            <li>
+                <strong>{{ task.title }}</strong>
+                <span>描述: {{ task.description }}</span>
+                <span>截止日期: {{ task.due_date }}</span>
+                <span>优先级: {{ task.priority }}</span>
+                <!-- 修改和删除按钮 -->
+                <div class="actions">
+                    <button class="button edit" onclick="openEditModal({{ task.id }}, '{{ task.title }}', '{{ task.description }}', '{{ task.due_date }}', {{ task.priority }})">修改</button>
+                    <button class="button delete" onclick="confirmDelete({{ task.id }})">删除</button>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- 创建任务模态框 -->
+    <div id="createTaskModal" class="modal">
+        <div class="modal-content">
+            <h2>创建新任务</h2>
+            <form id="createTaskForm" onsubmit="submitCreateForm(event)">
+                <input type="text" id="create-title" name="title" placeholder="任务标题" required>
+                <input type="text" id="create-description" name="description" placeholder="任务描述" required>
+                <input type="date" id="create-due_date" name="due_date" required>
+                <select id="create-priority" name="priority" required>
+                    <option value="1">1（最低优先级）</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5（中等优先级）</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9（最高优先级）</option>
+                </select>
+                <button type="submit" class="button create">提交</button>
+                <button type="button" class="button cancel" onclick="closeCreateModal()">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 修改任务模态框 -->
+    <div id="editTaskModal" class="modal">
+        <div class="modal-content">
+            <h2>修改任务</h2>
+            <form id="editTaskForm" onsubmit="submitEditForm(event)">
+                <input type="hidden" id="edit-id" name="id">
+                <input type="text" id="edit-title" name="title" placeholder="任务标题" required>
+                <input type="text" id="edit-description" name="description" placeholder="任务描述" required>
+                <input type="date" id="edit-due_date" name="due_date" required>
+                <select id="edit-priority" name="priority" required>
+                    <option value="1">1（最低优先级）</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5（中等优先级）</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9（最高优先级）</option>
+                </select>
+                <button type="submit" class="button edit">保存修改</button>
+                <button type="button" class="button cancel" onclick="closeEditModal()">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2025 任务管理系统
+    </footer>
+
+    <script>
+        // 打开创建模态框
+        function openCreateModal() {
+            document.getElementById('createTaskModal').style.display = 'flex';
+        }
+
+        // 关闭创建模态框
+        function closeCreateModal() {
+            document.getElementById('createTaskModal').style.display = 'none';
+        }
+
+        // 打开修改模态框并填充数据
+        function openEditModal(id, title, description, due_date, priority) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-title').value = title;
+            document.getElementById('edit-description').value = description;
+            document.getElementById('edit-due_date').value = due_date;
+            document.getElementById('edit-priority').value = priority;
+            document.getElementById('editTaskModal').style.display = 'flex';
+        }
+
+        // 关闭修改模态框
+        function closeEditModal() {
+            document.getElementById('editTaskModal').style.display = 'none';
+        }
+
+        // 提交创建表单
+        async function submitCreateForm(event) {
+            event.preventDefault();
+            const data = {
+                title: document.getElementById('create-title').value,
+                description: document.getElementById('create-description').value,
+                due_date: document.getElementById('create-due_date').value,
+                priority: parseInt(document.getElementById('create-priority').value)
+            };
+
+            try {
+                const response = await fetch('/tasks/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('任务创建成功');
+                    closeCreateModal();
+                    location.reload();
+                } else {
+                    alert('创建任务失败');
+                }
+            } catch (error) {
+                console.error('请求出错:', error);
+            }
+        }
+
+        // 提交修改表单
+        async function submitEditForm(event) {
+            event.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const data = {
+                title: document.getElementById('edit-title').value,
+                description: document.getElementById('edit-description').value,
+                due_date: document.getElementById('edit-due_date').value,
+                priority: parseInt(document.getElementById('edit-priority').value)
+            };
+
+            try {
+                const response = await fetch(`/tasks/${id}/edit`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('任务修改成功');
+                    closeEditModal();
+                    location.reload();
+                } else {
+                    alert('修改任务失败');
+                }
+            } catch (error) {
+                console.error('请求出错:', error);
+            }
+        }
+
+        // 确认删除任务
+        async function confirmDelete(id) {
+            if (confirm('确定要删除这个任务吗？')) {
+                try {
+                    const response = await fetch(`/tasks/${id}/delete`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        alert('任务删除成功');
+                        location.reload();
+                    } else {
+                        alert('删除任务失败');
+                    }
+                } catch (error) {
+                    console.error('请求出错:', error);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

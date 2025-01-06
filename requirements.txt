@@ -1,0 +1,5 @@
+fastapi[all]==0.111.0
+pydantic~=2.10.4
+requests~=2.32.3
+mysql~=0.0.3
+mysql-connector-python~=9.1.0
