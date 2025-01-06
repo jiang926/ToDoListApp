@@ -3,7 +3,6 @@ import mysql.connector
 from mysql.connector import Error
 from pydantic import BaseModel
 from typing import Optional, List, Dict
-from datetime import date
 
 DB_CONFIG = {
     "host": "192.168.1.60",
@@ -31,6 +30,12 @@ def write_task_to_data(task_data: BaseModel):
             INSERT INTO tasks (title, description, due_date, priority) VALUES (%s, %s, %s, %s)
         '''
         cursor.execute(query, (task_data.title, task_data.description, task_data.due_date, task_data.priority))
+        # 获取插入的任务 ID
+        task_id = cursor.lastrowid
+        query_id = '''
+            INSERT INTO task_status (task_id, is_completed) VALUES (%s, %s)
+        '''
+        cursor.execute(query_id, (task_id, False,))
         connection.commit()
         cursor.close()
         connection.close()
@@ -39,11 +44,30 @@ def write_task_to_data(task_data: BaseModel):
         raise
 
 
-def read_task_all_data() -> List[Dict]:
+def read_task_all_data(sort_by_priority: bool = False) -> List[Dict]:
     try:
         connection = get_connection()
         cursor = connection.cursor(dictionary=True)
-        query = 'SELECT * FROM tasks'
+        # 构造联表查询语句
+        query = '''
+                   SELECT 
+                       tasks.id AS task_id,
+                       tasks.title AS task_title,
+                       tasks.description AS task_description,
+                       tasks.due_date AS task_due_date,
+                       tasks.priority AS task_priority,
+                       task_status.is_completed AS task_is_completed
+                   FROM 
+                       tasks
+                   LEFT JOIN 
+                       task_status 
+                   ON 
+                       tasks.id = task_status.task_id
+       '''
+
+        # 如果需要按优先级排序，追加排序条件
+        if sort_by_priority:
+            query += ' ORDER BY tasks.priority DESC'
         cursor.execute(query)
         tasks = cursor.fetchall()
         cursor.close()
@@ -107,6 +131,11 @@ def delete_task_data_by_id(task_id: int):
         cursor = connection.cursor()
         query = '''DELETE FROM tasks WHERE id = %s'''
         cursor.execute(query, (task_id,))
+        # 获取插入的任务 ID
+        task_status_id = cursor.lastrowid
+        query_id = '''DELETE FROM task_status WHERE task_id = %s'''
+        cursor.execute(query_id, (task_status_id,))
+
         connection.commit()
         cursor.close()
         connection.close()

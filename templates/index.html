@@ -138,13 +138,21 @@
     <div class="container">
         <!-- 创建任务按钮 -->
         <button class="button create" onclick="openCreateModal()">创建任务</button>
-        <ul>
+        <!-- 优先级排序复选框 -->
+        <label style="display: block; margin: 10px 0;">
+            <input type="checkbox" id="sortByPriority" onchange="toggleSort()"> 按优先级排序
+        </label>
+        <ul id="taskList">
             {% for task in tasks %}
-            <li>
+            <li data-priority="{{ task.priority }}">
+                <input type="checkbox"
+                       onchange="updateTaskCompletion({{ task.task_id }}, this.checked)"
+                       {% if task.is_completed %}checked{% endif %}>
                 <strong>{{ task.title }}</strong>
                 <span>描述: {{ task.description }}</span>
                 <span>截止日期: {{ task.due_date }}</span>
                 <span>优先级: {{ task.priority }}</span>
+                <span>状态: {{ '已完成' if task.is_completed else '未完成' }}</span>
                 <!-- 修改和删除按钮 -->
                 <div class="actions">
                     <button class="button edit" onclick="openEditModal({{ task.id }}, '{{ task.title }}', '{{ task.description }}', '{{ task.due_date }}', {{ task.priority }})">修改</button>
@@ -158,21 +166,21 @@
     <!-- 创建任务模态框 -->
     <div id="createTaskModal" class="modal">
         <div class="modal-content">
-            <h2>创建新任务</h2>
-            <form id="createTaskForm" onsubmit="submitCreateForm(event)">
-                <input type="text" id="create-title" name="title" placeholder="任务标题" required>
-                <input type="text" id="create-description" name="description" placeholder="任务描述" required>
-                <input type="date" id="create-due_date" name="due_date" required>
-                <select id="create-priority" name="priority" required>
-                    <option value="1">1（最低优先级）</option>
+            <h2>创建任务</h2>
+            <form onsubmit="submitCreateForm(event)">
+                <input type="text" id="create-title" placeholder="任务标题" required>
+                <input type="text" id="create-description" placeholder="任务描述" required>
+                <input type="date" id="create-due_date" required>
+                <select id="create-priority" required>
+                    <option value="1">1(低)</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
                     <option value="4">4</option>
-                    <option value="5">5（中等优先级）</option>
+                    <option value="5">5(中)</option>
                     <option value="6">6</option>
                     <option value="7">7</option>
                     <option value="8">8</option>
-                    <option value="9">9（最高优先级）</option>
+                    <option value="9">9(高)</option>
                 </select>
                 <button type="submit" class="button create">提交</button>
                 <button type="button" class="button cancel" onclick="closeCreateModal()">取消</button>
@@ -184,21 +192,22 @@
     <div id="editTaskModal" class="modal">
         <div class="modal-content">
             <h2>修改任务</h2>
-            <form id="editTaskForm" onsubmit="submitEditForm(event)">
-                <input type="hidden" id="edit-id" name="id">
-                <input type="text" id="edit-title" name="title" placeholder="任务标题" required>
-                <input type="text" id="edit-description" name="description" placeholder="任务描述" required>
-                <input type="date" id="edit-due_date" name="due_date" required>
-                <select id="edit-priority" name="priority" required>
-                    <option value="1">1（最低优先级）</option>
+            <form onsubmit="submitEditForm(event)">
+                <input type="hidden" id="edit-id">
+                <input type="text" id="edit-title" placeholder="任务标题" required>
+                <input type="text" id="edit-description" placeholder="任务描述" required>
+                <input type="date" id="edit-due_date" required>
+                <select id="edit-priority" required>
+                    <option value="1">1(低)</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
                     <option value="4">4</option>
-                    <option value="5">5（中等优先级）</option>
+                    <option value="5">5(中)</option>
                     <option value="6">6</option>
                     <option value="7">7</option>
                     <option value="8">8</option>
-                    <option value="9">9（最高优先级）</option>
+                    <option value="9">9(高)</option>
+
                 </select>
                 <button type="submit" class="button edit">保存修改</button>
                 <button type="button" class="button cancel" onclick="closeEditModal()">取消</button>
@@ -312,6 +321,55 @@
                 } catch (error) {
                     console.error('请求出错:', error);
                 }
+            }
+        }
+
+        // 切换排序功能并与后端交互
+        async function toggleSort() {
+            const sortByPriority = document.getElementById('sortByPriority').checked;
+
+            try {
+                const response = await fetch(`/?sort_by_priority=${sortByPriority}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const html = await response.text();
+                    updateTaskList(html);
+                } else {
+                    alert('排序失败，请重试！');
+                }
+            } catch (error) {
+                console.error('请求出错:', error);
+            }
+        }
+
+        // 更新任务列表 DOM
+        function updateTaskList(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newTaskList = doc.querySelector('#taskList');
+            document.getElementById('taskList').innerHTML = newTaskList.innerHTML;
+        }
+
+        async function updateTaskCompletion(taskId, isCompleted) {
+            console.log(taskId)
+            try {
+                const response = await fetch(`/tasks/${taskId}/complete`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_completed: isCompleted })
+                });
+
+                if (response.ok) {
+                    alert('任务状态更新成功');
+                    location.reload();
+                } else {
+                    alert('更新任务状态失败');
+                }
+            } catch (error) {
+                console.error('请求出错:', error);
             }
         }
     </script>
